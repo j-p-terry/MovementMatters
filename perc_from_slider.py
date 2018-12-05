@@ -191,6 +191,98 @@ for i in range(len(years)-1):
 df_s = pd.DataFrame(sent_dic, index=origins)
 
 
+
+# 
+# for destination in destinations:
+
+
+arr_each_year_by_dest = []
+relative_sizes_arr = []
+for destination in destinations:
+	this_dest = []
+	these_sizes = []
+	for year in years:
+		total = 0
+		year = int(year)
+		for origin in origins:
+			try:
+				total += groups[(origin, destination)].query('Year == @year').Value.sum()
+			except:
+				total += 0
+		this_dest.append(total)
+	for i in range(len(years)):
+		these_sizes.append(0.5e2*this_dest[i]/max(this_dest))
+	arr_each_year_by_dest.append(this_dest)
+	relative_sizes_arr.append(these_sizes)
+relative_sizes_arr2 = [[] for i in range(len(years))]
+for i in range(len(relative_sizes_arr)):
+	for ii in range(len(relative_sizes_arr[i])):
+		relative_sizes_arr2[ii].append(relative_sizes_arr[i][ii])
+arr_each_year = [[] for i in range(len(years))]
+for i in range(len(arr_each_year_by_dest)):
+	for ii in range(len(arr_each_year_by_dest[i])):
+		arr_each_year[ii].append(arr_each_year_by_dest[i][ii])
+
+
+percentages = {}
+for destination in destinations:
+	percentages[destination] = []
+
+for j in range(len(destinations)):
+	for i in range(len(years)):
+		this_year = []
+		a_year = years[i]
+		for ii in range(len(origins)):
+			if arr_each_year[i][j] != 0:
+				sent_to = groups[(origins[ii], destinations[j])].\
+							query('Year == @a_year').Value.sum()
+				this_year.append(sent_to/arr_each_year[i][j])
+			else:
+				this_year.append(0)
+		percentages[destinations[j]].append(this_year)
+
+df = pd.DataFrame(index = years)
+
+for i in range(len(destinations)):
+	this_year = []
+	df[destinations[i]] = percentages[destinations[i]] 
+
+
+
+percentages_org = {}
+totals = {}
+for origin in origins:
+	percentages_org[origin] = []
+	totals[origin] = []
+
+for j in range(len(origins)):
+	for i in range(len(years)):
+		this_year = []
+		total_yr = []
+		a_year = years[i]
+		for ii in range(len(destinations)):
+			if arr_each_year[i][ii] != 0:
+				sent_to = groups[(origins[j], destinations[ii])].\
+							query('Year == @a_year').Value.sum()
+				this_year.append(sent_to/arr_each_year[i][ii])
+			else:
+				this_year.append(0)
+			total_yr.append(arr_each_year[i][ii])
+		percentages_org[origins[j]].append(this_year)
+		totals[origins[j]].append(total_yr)
+
+df_o = pd.DataFrame(index = years)
+
+for i in range(len(origins)):
+	df_o[origins[i]] = percentages_org[origins[i]] 
+
+df_t = pd.DataFrame(index = years)
+
+for i in range(len(origins)):
+	df_t[origins[i]] = totals[origins[i]] 
+
+
+
 '''Graphs with sliders'''
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -217,18 +309,19 @@ def update_figure(selected_year):
 	'''Updates the figure when the slider is moved'''
 
 	# Gets data based off of the year that the slider is on
-	filtered_df_d = df_d.loc[:, selected_year]
-	filtered_df_s = df_s.loc[:, selected_year]
+	filtered_df = df_o.loc[selected_year, :]
+	filtered_t = df_t.loc[selected_year, :]
 	traces = []
 
 	'''Filters by continent'''
 	for i in origins: # filter by country
-		dead_by_country = filtered_df_d[filtered_df_d.index == i] # filter by country
-		sent_by_country = filtered_df_s[filtered_df_s.index == i] # filter by country
+		percentages = filtered_df[i] # filter by country
+		total = filtered_t[i]
 		traces.append(go.Scatter(
-			x=sent_by_country,
-			y=dead_by_country,
+			x=[j for j in range(1, 7)],
+			y=percentages,
 # 			text=(stat.pearsonr(sent_by_country,dead_by_country),stat.spearmanr(sent_by_country,dead_by_country)),
+# 			text = total,
 			mode='markers',
 			opacity=0.7,
 			marker={
@@ -241,25 +334,14 @@ def update_figure(selected_year):
 	return {
 		'data': traces,
 		'layout': go.Layout(
-			xaxis={'title': 'Refugees Sent'},
-			yaxis={'title': 'Battle Deaths'},
+			xaxis={'title': 'Receiving Country', 'tickvals':[1,2,3,4,5,6], \
+					'ticktext':destinations},
+			yaxis={'title': 'Percentage From Origin'},
 			margin={'l': 70, 'b': 40, 't': 10, 'r': 70},
 			legend={'x': 0, 'y': 1},
 			hovermode='closest'
 		)
 	}
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
